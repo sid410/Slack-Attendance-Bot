@@ -24,6 +24,7 @@ def record_attendance(Attendance, id):
 
 # Called before the close of attendance checking and save to the excel file
 def save_attendance(wb, ws, Attendance, excel_file):
+    ws.column_dimensions['A'].width = 20
     r,c=1,1
 
     for k in Attendance:
