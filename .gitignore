@@ -3,6 +3,9 @@ __pycache__/
 # All excel files
 *.xlsx
 
+# Executables
+*.exe
+
 # Environments
 .env
 .venv
