@@ -6,7 +6,8 @@ from flask import Flask, request, Response
 from slackeventsapi import SlackEventAdapter
 import datetime
 import argparse
-from excelhandler import *
+from attendance_handler import *
+from grade_handler import *
 
 # Parse the arguments path to excel file and number of students
 parser = argparse.ArgumentParser()
@@ -69,6 +70,54 @@ class ConfirmationMessage:
         text = f'{checkmark} {str(datetime.date.today())}'
         return {'type': 'section', 'text': {'type': 'mrkdwn', 'text': text}}
 
+# Format of the broadcast grade message
+class GradeMessage:
+    START_TEXT = {
+        'type': 'section',
+        'text': {
+            'type': 'mrkdwn',
+            'text': (
+                'Your grade details as of'
+            )
+        }
+    }
+
+    DIVIDER = {'type': 'divider'}
+
+    def __init__(self, channel, user):
+        self.channel = channel
+        self.user = user
+        self.icon_emoji = ':robot_face:'
+        self.timestamp = ''
+
+    def message_grade_details(self, details):
+        return {
+            'ts': self.timestamp,
+            'channel': self.channel,
+            'username': 'Welcome Robot!',
+            'icon_emoji': self.icon_emoji,
+            'blocks':[
+                self.START_TEXT,
+                self._get_date_today(),
+                self.DIVIDER,
+                self.show_grade_details(details),
+            ]
+        }
+    
+    def show_grade_details(self, details):
+        return {'type': 'section', 'text': {'type': 'mrkdwn', 
+                                            'text': f"Name: {details[0]}\
+                                                \nAbsent: {details[1]} times\
+                                                \nParticipation: {details[2]} bonus\
+                                                \nAttendance: {details[3]} %\
+                                                \nLab Report: {details[5]} %\
+                                                \nExam Midterm: {details[6]} %\
+                                                \nMidsem Total: {details[8]} %\
+                                                "}}
+
+    def _get_date_today(self):
+        text = f'{str(datetime.date.today())}'
+        return {'type': 'section', 'text': {'type': 'mrkdwn', 'text': text}}
 
 def send_confirm_message(channel, user, att):
     # Update attendance list
@@ -99,6 +148,34 @@ def message_count():
     
     return Response(), 200
 
+
+def send_grade_privately(channel, user, grade_list):
+
+    # Send a confirmation message back to user that attendance was successfully recorded
+    grade_msg = GradeMessage(channel, user)
+    message = grade_msg.message_grade_details(grade_list)
+    response = client.chat_postMessage(**message)
+    grade_msg.timestamp = response['ts']
+
+# Triggered every time the /grade command is called
+@app.route('/grade', methods=['POST'])
+def send_grade_info():
+    data = request.form
+
+    # Make it so only I can send the broadcast message
+    user_id = data.get('user_id')
+    text = data.get('text')
+
+    if user_id == 'U057BCVHWCQ' and text == 'broadcast':
+        # for loop here later
+        # send_grade_privately(f'@{user_id}', user_id)
+        grades_all = grades_dictionary(args.xlsx_file)
+        for student in grades_all:
+            print(f"sent to {student}")
+            send_grade_privately(f'@{student}', student, grades_all[student])
+
+    
+    return Response(), 200
 
 if __name__ == "__main__":
     app.run(debug=True)
